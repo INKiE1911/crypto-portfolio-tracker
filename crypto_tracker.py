@@ -31,6 +31,21 @@ cur.executescript('''CREATE TABLE IF NOT EXISTS Portfolio (
                holdings REAL,
                avg_purchase_price REAL);''')  # FIX 3: renamed to avg_purchase_price to reflect what it actually stores
 
+# Handle legacy schema where avg_purchase_price did not exist.
+cur.execute("PRAGMA table_info(Portfolio)")
+columns = {row[1] for row in cur.fetchall()}
+if 'avg_purchase_price' not in columns:
+    cur.execute('ALTER TABLE Portfolio ADD COLUMN avg_purchase_price REAL')
+    if 'purchase_price' in columns:
+        cur.execute(
+            'UPDATE Portfolio SET avg_purchase_price = purchase_price WHERE avg_purchase_price IS NULL'
+        )
+    else:
+        cur.execute(
+            'UPDATE Portfolio SET avg_purchase_price = 0 WHERE avg_purchase_price IS NULL'
+        )
+    conn.commit()
+
 API_KEY = os.getenv("COINGECKO_API_KEY")
 
 print("Commands: buy <amount> <coin_id> | sell <amount> <coin_id> | show | quit")
